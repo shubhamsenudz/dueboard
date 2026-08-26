@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 async function api(path, opts={}) {
   const token = localStorage.getItem("token");
-  const res = await fetch("/api"+path, { ...opts, headers: { "Content-Type":"application/json", ...(token?{Authorization:"Bearer "+token}:{}), ...(opts.headers||{}) } });
+  const res = await fetch((import.meta.env.VITE_API_URL||"")+"/api"+path, { ...opts, headers: { "Content-Type":"application/json", ...(token?{Authorization:"Bearer "+token}:{}), ...(opts.headers||{}) } });
   if(!res.ok) throw new Error(await res.text());
   const text = await res.text();
   if(!text) return null;
@@ -23,8 +23,8 @@ function ClientPage(){
         <label>status<input value={form.status ?? ""} onChange={ev => setForm({...form, status: ev.target.value})} /></label>
       <button type="submit">Add</button>
     </form>
-    <table><thead><tr><th>name</th><th>gstin</th><th>phone</th><th>filingType</th><th>status</th><th></th></tr></thead>
-    <tbody>{rows.map(row=><tr key={row.id}><td>{String(row.name ?? "")}</td><td>{String(row.gstin ?? "")}</td><td>{String(row.phone ?? "")}</td><td>{String(row.filingType ?? "")}</td><td>{String(row.status ?? "")}</td><td><button className="link" onClick={()=>remove(row.id)}>Delete</button></td></tr>)}</tbody></table>
+    <div className="table-wrap"><table><thead><tr><th>name</th><th>gstin</th><th>phone</th><th>filingType</th><th>status</th><th></th></tr></thead>
+    <tbody>{rows.map(row=><tr key={row.id}><td>{String(row.name ?? "")}</td><td>{String(row.gstin ?? "")}</td><td>{String(row.phone ?? "")}</td><td>{String(row.filingType ?? "")}</td><td>{String(row.status ?? "")}</td><td><button className="link" onClick={()=>remove(row.id)}>Delete</button></td></tr>)}</tbody></table></div>
   </div>);
 }
 
@@ -44,8 +44,8 @@ function TaskPage(){
         <label>status<input value={form.status ?? ""} onChange={ev => setForm({...form, status: ev.target.value})} /></label>
       <button type="submit">Add</button>
     </form>
-    <table><thead><tr><th>clientId</th><th>serviceCode</th><th>period</th><th>dueOn</th><th>status</th><th></th></tr></thead>
-    <tbody>{rows.map(row=><tr key={row.id}><td>{String(row.clientId ?? "")}</td><td>{String(row.serviceCode ?? "")}</td><td>{String(row.period ?? "")}</td><td>{String(row.dueOn ?? "")}</td><td>{String(row.status ?? "")}</td><td><button className="link" onClick={()=>remove(row.id)}>Delete</button></td></tr>)}</tbody></table>
+    <div className="table-wrap"><table><thead><tr><th>clientId</th><th>serviceCode</th><th>period</th><th>dueOn</th><th>status</th><th></th></tr></thead>
+    <tbody>{rows.map(row=><tr key={row.id}><td>{String(row.clientId ?? "")}</td><td>{String(row.serviceCode ?? "")}</td><td>{String(row.period ?? "")}</td><td>{String(row.dueOn ?? "")}</td><td>{String(row.status ?? "")}</td><td><button className="link" onClick={()=>remove(row.id)}>Delete</button></td></tr>)}</tbody></table></div>
   </div>);
 }
 
@@ -63,8 +63,8 @@ function WorkFilePage(){
         <label>kind<input value={form.kind ?? ""} onChange={ev => setForm({...form, kind: ev.target.value})} /></label>
       <button type="submit">Add</button>
     </form>
-    <table><thead><tr><th>taskId</th><th>fileName</th><th>kind</th><th></th></tr></thead>
-    <tbody>{rows.map(row=><tr key={row.id}><td>{String(row.taskId ?? "")}</td><td>{String(row.fileName ?? "")}</td><td>{String(row.kind ?? "")}</td><td><button className="link" onClick={()=>remove(row.id)}>Delete</button></td></tr>)}</tbody></table>
+    <div className="table-wrap"><table><thead><tr><th>taskId</th><th>fileName</th><th>kind</th><th></th></tr></thead>
+    <tbody>{rows.map(row=><tr key={row.id}><td>{String(row.taskId ?? "")}</td><td>{String(row.fileName ?? "")}</td><td>{String(row.kind ?? "")}</td><td><button className="link" onClick={()=>remove(row.id)}>Delete</button></td></tr>)}</tbody></table></div>
   </div>);
 }
 function Dashboard(){
@@ -81,6 +81,7 @@ function Dashboard(){
 }
 export default function App(){
   const [token,setToken]=useState(localStorage.getItem("token"));
+  const [menu,setMenu]=useState(false);
   const [page,setPage]=useState("dashboard");
   const [mode,setMode]=useState("login");
   const [form,setForm]=useState({tenantName:"",city:"Mumbai",fullName:"",email:"",password:""});
@@ -116,15 +117,22 @@ export default function App(){
   if(page==="tasks") body = <TaskPage />;
   if(page==="work_files") body = <WorkFilePage />;
   return (<div>
-    <div className="top"><div className="brand">DueBoard</div><button onClick={()=>{localStorage.removeItem("token"); setToken(null);}}>Log out</button></div>
+    <div className="top"><button type="button" className="burger" onClick={()=>setMenu(v=>!v)}>Menu</button><div className="brand">DueBoard</div><button onClick={()=>{localStorage.removeItem("token"); setToken(null);}}>Log out</button></div>
     <div className="layout">
-      <nav>
+      {menu && <button className="scrim" onClick={()=>setMenu(false)} />}
+      <nav className={"side"+(menu?" open":"")} onClick={()=>setMenu(false)}>
           <button className={page==="dashboard"?"active":""} onClick={()=>setPage("dashboard")}>Home</button>
           <button className={page==="clients"?"active":""} onClick={()=>setPage("clients")}>Clients</button>
           <button className={page==="tasks"?"active":""} onClick={()=>setPage("tasks")}>Tasks</button>
           <button className={page==="work_files"?"active":""} onClick={()=>setPage("work_files")}>WorkFiles</button>
       </nav>
       <main>{body}</main>
+      <nav className="tabs">
+          <button className={page==="dashboard"?"active":""} onClick={()=>setPage("dashboard")}>Home</button>
+          <button className={page==="clients"?"active":""} onClick={()=>setPage("clients")}>Clients</button>
+          <button className={page==="tasks"?"active":""} onClick={()=>setPage("tasks")}>Tasks</button>
+          <button className={page==="work_files"?"active":""} onClick={()=>setPage("work_files")}>WorkFiles</button>
+      </nav>
     </div>
   </div>);
 }

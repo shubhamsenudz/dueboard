@@ -12,7 +12,7 @@ public class SecurityConfig {
     @Bean SecurityFilterChain chain(HttpSecurity http, JwtFilter jwtFilter) throws Exception {
         http.csrf(c->c.disable()).cors(c->{});
         http.sessionManagement(s->s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
-        http.authorizeHttpRequests(a->a.requestMatchers("/api/auth/**").permitAll().requestMatchers("/api/**").authenticated().anyRequest().permitAll());
+        http.authorizeHttpRequests(a->a.requestMatchers("/api/auth/**","/api/health").permitAll().requestMatchers("/api/**").authenticated().anyRequest().permitAll());
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

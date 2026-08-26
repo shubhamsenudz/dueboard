@@ -5,8 +5,15 @@ spring:
     username: ${DATABASE_USER:postgres}
     password: ${DATABASE_PASSWORD:postgres}
   jpa:
-    hibernate.ddl-auto: validate
+    hibernate:
+      ddl-auto: validate
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+        implicit-strategy: org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
     open-in-view: false
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
   flyway.enabled: true
 app:
   jwt-secret: ${JWT_SECRET:india-saas-change-me-use-a-32-byte-secret-key}
