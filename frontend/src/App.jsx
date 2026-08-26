@@ -87,24 +87,34 @@ function WorkingpapersPage(){
   </section>);
 }
 function Dashboard(){
-  const [data,setData]=useState(null);
-  const [counts,setCounts]=useState([]);
-  useEffect(()=>{
-    api("/dashboard").then(setData).catch(()=>{});
-    Promise.all([api("/clients"),api("/tasks"),api("/work_files")]).then(sets => setCounts(sets.map(x => (x||[]).length))).catch(()=>{});
-  },[]);
+  const [w,setW]=useState(null);
+  const [msg,setMsg]=useState("");
+  const load=()=>api("/work").then(setW).catch(()=>{});
+  useEffect(()=>{load();},[]);
+  async function seed(){ const r=await api("/work/seed-month",{method:"POST",body:"{}"}); setMsg("Created "+r.created+" GST tasks"); load(); }
+  async function done(id){ await api("/tasks/"+id,{method:"PUT",body:JSON.stringify({status:"FILED"})}); load(); }
+  const rows=[...(w?.overdue||[]).map(r=>({...r,flag:"Overdue"})), ...(w?.dueSoon||[]).map(r=>({...r,flag:"This week"}))];
   return (<div>
     <div className="hero-panel">
-      <div className="kicker">For CA and GSTP firms</div>
-      <h1>DueBoard</h1>
-      <p>{data?.tag || "See every GST, TDS, ITR and ROC due before it becomes a penalty."}</p>
+      <div className="kicker">Today</div>
+      <h1>Filing board</h1>
+      <p>Seed GSTR-1 and 3B for this month, then mark filed.</p>
+      <button onClick={seed}>Create this month's GST tasks</button>
     </div>
     <div className="hero">
-      <div className="stat"><span>Workspace</span><b>{data?.tenant || "—"}</b></div>
-      <div className="stat"><span>Clients</span><b>{counts[0] ?? 0}</b></div>
-      <div className="stat"><span>Due tasks</span><b>{counts[1] ?? 0}</b></div>
-      <div className="stat"><span>Working papers</span><b>{counts[2] ?? 0}</b></div>
+      <div className="stat"><span>Open</span><b>{w?.open ?? 0}</b></div>
+      <div className="stat"><span>Overdue</span><b>{(w?.overdue||[]).length}</b></div>
+      <div className="stat"><span>Due in 7 days</span><b>{(w?.dueSoon||[]).length}</b></div>
     </div>
+    {msg && <p className="muted">{msg}</p>}
+    <section className="card">
+      <h2>Work queue</h2>
+      {rows.length===0 ? <div className="empty">Add clients, then seed this month.</div> : (
+        <div className="table-wrap"><table><thead><tr><th>Flag</th><th>Return</th><th>Period</th><th>Due</th><th></th></tr></thead>
+        <tbody>{rows.map(r=><tr key={r.id}><td>{r.flag}</td><td>{r.serviceCode}</td><td>{r.period}</td><td>{r.dueOn}</td>
+          <td><button onClick={()=>done(r.id)}>Mark filed</button></td></tr>)}</tbody></table></div>
+      )}
+    </section>
   </div>);
 }
 export default function App(){
