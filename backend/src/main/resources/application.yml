@@ -1,0 +1,12 @@
+server.port: 8080
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/dueboard}
+    username: ${DATABASE_USER:postgres}
+    password: ${DATABASE_PASSWORD:postgres}
+  jpa:
+    hibernate.ddl-auto: validate
+    open-in-view: false
+  flyway.enabled: true
+app:
+  jwt-secret: ${JWT_SECRET:india-saas-change-me-use-a-32-byte-secret-key}
