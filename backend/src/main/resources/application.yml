@@ -1,9 +1,13 @@
 server.port: 8080
 spring:
+  application.name: dueboard
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/dueboard}
     username: ${DATABASE_USER:postgres}
     password: ${DATABASE_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
   jpa:
     hibernate:
       ddl-auto: validate
@@ -15,5 +19,10 @@ spring:
     deserialization:
       fail-on-unknown-properties: false
   flyway.enabled: true
+logging:
+  level:
+    root: INFO
+    in.senudz: INFO
+    org.hibernate.SQL: WARN
 app:
   jwt-secret: ${JWT_SECRET:india-saas-change-me-use-a-32-byte-secret-key}

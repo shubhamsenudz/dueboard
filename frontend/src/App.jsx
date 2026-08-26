@@ -1,82 +1,110 @@
 import React, { useEffect, useState } from "react";
+function parseErr(t){ try{ const j=JSON.parse(t); return j.error||t; }catch{ return t||"Request failed"; } }
 async function api(path, opts={}) {
   const token = localStorage.getItem("token");
-  const res = await fetch((import.meta.env.VITE_API_URL||"")+"/api"+path, { ...opts, headers: { "Content-Type":"application/json", ...(token?{Authorization:"Bearer "+token}:{}), ...(opts.headers||{}) } });
-  if(!res.ok) throw new Error(await res.text());
+  const res = await fetch((import.meta.env.VITE_API_URL||"")+"/api"+path, {
+    ...opts,
+    headers: { "Content-Type":"application/json", ...(token?{Authorization:"Bearer "+token}:{}), ...(opts.headers||{}) }
+  });
   const text = await res.text();
+  if(!res.ok) throw new Error(parseErr(text));
   if(!text) return null;
   return JSON.parse(text);
 }
-function ClientPage(){
+function ClientsPage(){
   const [rows,setRows]=useState([]);
   const [form,setForm]=useState({});
-  const load=()=>api("/clients").then(setRows);
+  const [err,setErr]=useState("");
+  const load=()=>api("/clients").then(setRows).catch(e=>setErr(e.message));
   useEffect(()=>{load();},[]);
-  const save=async ev=>{ev.preventDefault(); await api("/clients",{method:"POST",body:JSON.stringify(form)}); setForm({}); load();};
-  const remove=id=>api("/clients/"+id,{method:"DELETE"}).then(load);
-  return (<div className="card"><h2>Clients</h2>
+  const save=async ev=>{ev.preventDefault(); setErr(""); try{ await api("/clients",{method:"POST",body:JSON.stringify(form)}); setForm({}); load(); }catch(e){ setErr(e.message); }};
+  const remove=id=>api("/clients/"+id,{method:"DELETE"}).then(load).catch(e=>setErr(e.message));
+  return (<section className="card">
+    <h2>Clients</h2>
+    <p className="muted">Add a GSTIN to start the due board.</p>
     <form className="grid-form" onSubmit={save}>
-        <label>name<input value={form.name ?? ""} onChange={ev => setForm({...form, name: ev.target.value})} /></label>
-        <label>gstin<input value={form.gstin ?? ""} onChange={ev => setForm({...form, gstin: ev.target.value})} /></label>
-        <label>phone<input value={form.phone ?? ""} onChange={ev => setForm({...form, phone: ev.target.value})} /></label>
-        <label>filingType<input value={form.filingType ?? ""} onChange={ev => setForm({...form, filingType: ev.target.value})} /></label>
-        <label>status<input value={form.status ?? ""} onChange={ev => setForm({...form, status: ev.target.value})} /></label>
-      <button type="submit">Add</button>
+        <label>Client<input value={form.name ?? ""} onChange={ev => setForm({...form, name: ev.target.value})} /></label>
+        <label>GSTIN<input value={form.gstin ?? ""} onChange={ev => setForm({...form, gstin: ev.target.value})} /></label>
+        <label>Phone<input value={form.phone ?? ""} onChange={ev => setForm({...form, phone: ev.target.value})} /></label>
+        <label>Filing type<input value={form.filingType ?? ""} onChange={ev => setForm({...form, filingType: ev.target.value})} /></label>
+        <label>Status<input value={form.status ?? ""} onChange={ev => setForm({...form, status: ev.target.value})} /></label>
+      <button type="submit">Save</button>
     </form>
-    <div className="table-wrap"><table><thead><tr><th>name</th><th>gstin</th><th>phone</th><th>filingType</th><th>status</th><th></th></tr></thead>
-    <tbody>{rows.map(row=><tr key={row.id}><td>{String(row.name ?? "")}</td><td>{String(row.gstin ?? "")}</td><td>{String(row.phone ?? "")}</td><td>{String(row.filingType ?? "")}</td><td>{String(row.status ?? "")}</td><td><button className="link" onClick={()=>remove(row.id)}>Delete</button></td></tr>)}</tbody></table></div>
-  </div>);
+    {err && <p className="err">{err}</p>}
+    {rows.length===0 ? <div className="empty">Add a GSTIN to start the due board.</div> : (
+    <div className="table-wrap"><table><thead><tr><th>Client</th><th>GSTIN</th><th>Phone</th><th>Filing type</th><th>Status</th><th></th></tr></thead>
+    <tbody>{rows.map(row=><tr key={row.id}><td>{String(row.name ?? "")}</td><td>{String(row.gstin ?? "")}</td><td>{String(row.phone ?? "")}</td><td>{String(row.filingType ?? "")}</td><td>{String(row.status ?? "")}</td><td><button className="danger" onClick={()=>remove(row.id)}>Remove</button></td></tr>)}</tbody></table></div>)}
+  </section>);
 }
 
-function TaskPage(){
+function DuetasksPage(){
   const [rows,setRows]=useState([]);
   const [form,setForm]=useState({});
-  const load=()=>api("/tasks").then(setRows);
+  const [err,setErr]=useState("");
+  const load=()=>api("/tasks").then(setRows).catch(e=>setErr(e.message));
   useEffect(()=>{load();},[]);
-  const save=async ev=>{ev.preventDefault(); await api("/tasks",{method:"POST",body:JSON.stringify(form)}); setForm({}); load();};
-  const remove=id=>api("/tasks/"+id,{method:"DELETE"}).then(load);
-  return (<div className="card"><h2>Tasks</h2>
+  const save=async ev=>{ev.preventDefault(); setErr(""); try{ await api("/tasks",{method:"POST",body:JSON.stringify(form)}); setForm({}); load(); }catch(e){ setErr(e.message); }};
+  const remove=id=>api("/tasks/"+id,{method:"DELETE"}).then(load).catch(e=>setErr(e.message));
+  return (<section className="card">
+    <h2>Due tasks</h2>
+    <p className="muted">No filings on the board.</p>
     <form className="grid-form" onSubmit={save}>
-        <label>clientId<input value={form.clientId ?? ""} onChange={ev => setForm({...form, clientId: ev.target.value})} /></label>
-        <label>serviceCode<input value={form.serviceCode ?? ""} onChange={ev => setForm({...form, serviceCode: ev.target.value})} /></label>
-        <label>period<input value={form.period ?? ""} onChange={ev => setForm({...form, period: ev.target.value})} /></label>
-        <label>dueOn<input value={form.dueOn ?? ""} onChange={ev => setForm({...form, dueOn: ev.target.value})} /></label>
-        <label>status<input value={form.status ?? ""} onChange={ev => setForm({...form, status: ev.target.value})} /></label>
-      <button type="submit">Add</button>
+        <label>Client id<input value={form.clientId ?? ""} onChange={ev => setForm({...form, clientId: ev.target.value})} /></label>
+        <label>Return<input value={form.serviceCode ?? ""} onChange={ev => setForm({...form, serviceCode: ev.target.value})} /></label>
+        <label>Period<input value={form.period ?? ""} onChange={ev => setForm({...form, period: ev.target.value})} /></label>
+        <label>Due date<input value={form.dueOn ?? ""} onChange={ev => setForm({...form, dueOn: ev.target.value})} /></label>
+        <label>Status<input value={form.status ?? ""} onChange={ev => setForm({...form, status: ev.target.value})} /></label>
+      <button type="submit">Save</button>
     </form>
-    <div className="table-wrap"><table><thead><tr><th>clientId</th><th>serviceCode</th><th>period</th><th>dueOn</th><th>status</th><th></th></tr></thead>
-    <tbody>{rows.map(row=><tr key={row.id}><td>{String(row.clientId ?? "")}</td><td>{String(row.serviceCode ?? "")}</td><td>{String(row.period ?? "")}</td><td>{String(row.dueOn ?? "")}</td><td>{String(row.status ?? "")}</td><td><button className="link" onClick={()=>remove(row.id)}>Delete</button></td></tr>)}</tbody></table></div>
-  </div>);
+    {err && <p className="err">{err}</p>}
+    {rows.length===0 ? <div className="empty">No filings on the board.</div> : (
+    <div className="table-wrap"><table><thead><tr><th>Client id</th><th>Return</th><th>Period</th><th>Due date</th><th>Status</th><th></th></tr></thead>
+    <tbody>{rows.map(row=><tr key={row.id}><td>{String(row.clientId ?? "")}</td><td>{String(row.serviceCode ?? "")}</td><td>{String(row.period ?? "")}</td><td>{String(row.dueOn ?? "")}</td><td>{String(row.status ?? "")}</td><td><button className="danger" onClick={()=>remove(row.id)}>Remove</button></td></tr>)}</tbody></table></div>)}
+  </section>);
 }
 
-function WorkFilePage(){
+function WorkingpapersPage(){
   const [rows,setRows]=useState([]);
   const [form,setForm]=useState({});
-  const load=()=>api("/work_files").then(setRows);
+  const [err,setErr]=useState("");
+  const load=()=>api("/work_files").then(setRows).catch(e=>setErr(e.message));
   useEffect(()=>{load();},[]);
-  const save=async ev=>{ev.preventDefault(); await api("/work_files",{method:"POST",body:JSON.stringify(form)}); setForm({}); load();};
-  const remove=id=>api("/work_files/"+id,{method:"DELETE"}).then(load);
-  return (<div className="card"><h2>WorkFiles</h2>
+  const save=async ev=>{ev.preventDefault(); setErr(""); try{ await api("/work_files",{method:"POST",body:JSON.stringify(form)}); setForm({}); load(); }catch(e){ setErr(e.message); }};
+  const remove=id=>api("/work_files/"+id,{method:"DELETE"}).then(load).catch(e=>setErr(e.message));
+  return (<section className="card">
+    <h2>Working papers</h2>
+    <p className="muted">Attach Tally backups and workings.</p>
     <form className="grid-form" onSubmit={save}>
-        <label>taskId<input value={form.taskId ?? ""} onChange={ev => setForm({...form, taskId: ev.target.value})} /></label>
-        <label>fileName<input value={form.fileName ?? ""} onChange={ev => setForm({...form, fileName: ev.target.value})} /></label>
-        <label>kind<input value={form.kind ?? ""} onChange={ev => setForm({...form, kind: ev.target.value})} /></label>
-      <button type="submit">Add</button>
+        <label>Task id<input value={form.taskId ?? ""} onChange={ev => setForm({...form, taskId: ev.target.value})} /></label>
+        <label>File name<input value={form.fileName ?? ""} onChange={ev => setForm({...form, fileName: ev.target.value})} /></label>
+        <label>Kind<input value={form.kind ?? ""} onChange={ev => setForm({...form, kind: ev.target.value})} /></label>
+      <button type="submit">Save</button>
     </form>
-    <div className="table-wrap"><table><thead><tr><th>taskId</th><th>fileName</th><th>kind</th><th></th></tr></thead>
-    <tbody>{rows.map(row=><tr key={row.id}><td>{String(row.taskId ?? "")}</td><td>{String(row.fileName ?? "")}</td><td>{String(row.kind ?? "")}</td><td><button className="link" onClick={()=>remove(row.id)}>Delete</button></td></tr>)}</tbody></table></div>
-  </div>);
+    {err && <p className="err">{err}</p>}
+    {rows.length===0 ? <div className="empty">Attach Tally backups and workings.</div> : (
+    <div className="table-wrap"><table><thead><tr><th>Task id</th><th>File name</th><th>Kind</th><th></th></tr></thead>
+    <tbody>{rows.map(row=><tr key={row.id}><td>{String(row.taskId ?? "")}</td><td>{String(row.fileName ?? "")}</td><td>{String(row.kind ?? "")}</td><td><button className="danger" onClick={()=>remove(row.id)}>Remove</button></td></tr>)}</tbody></table></div>)}
+  </section>);
 }
 function Dashboard(){
   const [data,setData]=useState(null);
-  useEffect(()=>{ api("/dashboard").then(setData).catch(()=>{}); },[]);
+  const [counts,setCounts]=useState([]);
+  useEffect(()=>{
+    api("/dashboard").then(setData).catch(()=>{});
+    Promise.all([api("/clients"),api("/tasks"),api("/work_files")]).then(sets => setCounts(sets.map(x => (x||[]).length))).catch(()=>{});
+  },[]);
   return (<div>
-    <div className="hero">
-      <div className="stat"><span className="muted">Product</span><b>DueBoard</b></div>
-      <div className="stat"><span className="muted">Workspace</span><b>{data?.tenant || "—"}</b></div>
-      <div className="stat"><span className="muted">Region</span><b>ap-south-1</b></div>
+    <div className="hero-panel">
+      <div className="kicker">For CA and GSTP firms</div>
+      <h1>DueBoard</h1>
+      <p>{data?.tag || "See every GST, TDS, ITR and ROC due before it becomes a penalty."}</p>
     </div>
-    <div className="card"><p>{data?.tag || "GST, TDS, ITR and ROC due board for 2-8 person CA / GSTP shops."}</p></div>
+    <div className="hero">
+      <div className="stat"><span>Workspace</span><b>{data?.tenant || "—"}</b></div>
+      <div className="stat"><span>Clients</span><b>{counts[0] ?? 0}</b></div>
+      <div className="stat"><span>Due tasks</span><b>{counts[1] ?? 0}</b></div>
+      <div className="stat"><span>Working papers</span><b>{counts[2] ?? 0}</b></div>
+    </div>
   </div>);
 }
 export default function App(){
@@ -84,7 +112,7 @@ export default function App(){
   const [menu,setMenu]=useState(false);
   const [page,setPage]=useState("dashboard");
   const [mode,setMode]=useState("login");
-  const [form,setForm]=useState({tenantName:"",city:"Mumbai",fullName:"",email:"",password:""});
+  const [form,setForm]=useState({tenantName:"",city:"Pune",fullName:"",email:"",password:""});
   const [err,setErr]=useState("");
   async function submit(ev){
     ev.preventDefault(); setErr("");
@@ -96,42 +124,50 @@ export default function App(){
     }catch(e){ setErr(e.message); }
   }
   if(!token){
-    return (<div className="auth card">
-      <h1>DueBoard</h1><p className="muted">GST, TDS, ITR and ROC due board for 2-8 person CA / GSTP shops.</p>
-      <form onSubmit={submit} className="grid-form">
-        {mode==="register" && <>
-          <label>Workspace<input value={form.tenantName} onChange={e=>setForm({...form,tenantName:e.target.value})} required /></label>
-          <label>City<input value={form.city} onChange={e=>setForm({...form,city:e.target.value})} /></label>
-          <label>Your name<input value={form.fullName} onChange={e=>setForm({...form,fullName:e.target.value})} required /></label>
-        </>}
-        <label>Email<input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required /></label>
-        <label>Password<input type="password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required /></label>
-        <button type="submit">{mode==="register"?"Create workspace":"Log in"}</button>
-      </form>
-      {err && <p className="muted">{err}</p>}
-      <button className="link" onClick={()=>setMode(mode==="login"?"register":"login")}>{mode==="login"?"Create a workspace":"Have an account? Log in"}</button>
+    return (<div className="auth-wrap">
+      <div className="auth">
+        <div className="kicker">For CA and GSTP firms</div>
+        <h1>DueBoard</h1>
+        <p className="muted">See every GST, TDS, ITR and ROC due before it becomes a penalty.</p>
+        <form onSubmit={submit} className="grid-form">
+          {mode==="register" && <>
+            <label>Workspace<input value={form.tenantName} onChange={e=>setForm({...form,tenantName:e.target.value})} required /></label>
+            <label>City<input value={form.city} onChange={e=>setForm({...form,city:e.target.value})} /></label>
+            <label>Your name<input value={form.fullName} onChange={e=>setForm({...form,fullName:e.target.value})} required /></label>
+          </>}
+          <label>Email<input type="email" autoComplete="username" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required /></label>
+          <label>Password<input type="password" autoComplete={mode==="login"?"current-password":"new-password"} value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required minLength={8} /></label>
+          <button type="submit">{mode==="register"?"Open workspace":"Log in"}</button>
+        </form>
+        {err && <p className="err">{err}</p>}
+        <button className="ghost-ink" onClick={()=>setMode(mode==="login"?"register":"login")}>{mode==="login"?"Create a workspace":"Have an account? Log in"}</button>
+      </div>
     </div>);
   }
   let body = <Dashboard />;
-  if(page==="clients") body = <ClientPage />;
-  if(page==="tasks") body = <TaskPage />;
-  if(page==="work_files") body = <WorkFilePage />;
-  return (<div>
-    <div className="top"><button type="button" className="burger" onClick={()=>setMenu(v=>!v)}>Menu</button><div className="brand">DueBoard</div><button onClick={()=>{localStorage.removeItem("token"); setToken(null);}}>Log out</button></div>
+  if(page==="clients") body = <ClientsPage />;
+  if(page==="tasks") body = <DuetasksPage />;
+  if(page==="work_files") body = <WorkingpapersPage />;
+  return (<div className="shell">
+    <div className="top">
+      <button type="button" className="burger" onClick={()=>setMenu(v=>!v)}>Menu</button>
+      <div className="brand">DueBoard</div>
+      <button className="ghost" onClick={()=>{localStorage.removeItem("token"); setToken(null);}}>Log out</button>
+    </div>
     <div className="layout">
       {menu && <button className="scrim" onClick={()=>setMenu(false)} />}
       <nav className={"side"+(menu?" open":"")} onClick={()=>setMenu(false)}>
           <button className={page==="dashboard"?"active":""} onClick={()=>setPage("dashboard")}>Home</button>
           <button className={page==="clients"?"active":""} onClick={()=>setPage("clients")}>Clients</button>
-          <button className={page==="tasks"?"active":""} onClick={()=>setPage("tasks")}>Tasks</button>
-          <button className={page==="work_files"?"active":""} onClick={()=>setPage("work_files")}>WorkFiles</button>
+          <button className={page==="tasks"?"active":""} onClick={()=>setPage("tasks")}>Due tasks</button>
+          <button className={page==="work_files"?"active":""} onClick={()=>setPage("work_files")}>Working papers</button>
       </nav>
       <main>{body}</main>
       <nav className="tabs">
           <button className={page==="dashboard"?"active":""} onClick={()=>setPage("dashboard")}>Home</button>
           <button className={page==="clients"?"active":""} onClick={()=>setPage("clients")}>Clients</button>
-          <button className={page==="tasks"?"active":""} onClick={()=>setPage("tasks")}>Tasks</button>
-          <button className={page==="work_files"?"active":""} onClick={()=>setPage("work_files")}>WorkFiles</button>
+          <button className={page==="tasks"?"active":""} onClick={()=>setPage("tasks")}>Due tasks</button>
+          <button className={page==="work_files"?"active":""} onClick={()=>setPage("work_files")}>Working papers</button>
       </nav>
     </div>
   </div>);
