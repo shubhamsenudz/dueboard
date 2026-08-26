@@ -64,3 +64,7 @@ th,td{padding:11px 8px;border-bottom:1px solid var(--line);text-align:left;font-
   .burger{display:none}
   main{margin:0 auto}
 }
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;align-items:stretch}
+.tools input,.tools textarea{flex:1;min-width:160px;min-height:44px;padding:8px;border:1px solid var(--line);border-radius:10px}
+a.wa{display:inline-flex;align-items:center;background:#25D366;color:#fff;padding:8px 10px;border-radius:10px;text-decoration:none;min-height:40px;font-size:13px}
+@media print{.top,.side,.tabs,.burger,.scrim{display:none!important}}

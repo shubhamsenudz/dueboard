@@ -7,24 +7,38 @@ import java.util.*;
 public class WorkController {
     private final ClientRepository clients;
     private final TaskRepository tasks;
-    public WorkController(ClientRepository clients, TaskRepository tasks) {
-        this.clients = clients; this.tasks = tasks;
+    private final TenantRepository tenants;
+    public WorkController(ClientRepository clients, TaskRepository tasks, TenantRepository tenants) {
+        this.clients = clients; this.tasks = tasks; this.tenants = tenants;
     }
     @GetMapping
     public Map<String,Object> today() {
         Long tid = TenantContext.getTenantId();
+        Tenant firm = tenants.findById(tid).orElseThrow();
         LocalDate today = LocalDate.now();
+        Map<Long, Client> cmap = new HashMap<>();
+        clients.findByTenantId(tid).forEach(c -> cmap.put(c.getId(), c));
         List<Map<String,Object>> overdue = new ArrayList<>();
         List<Map<String,Object>> soon = new ArrayList<>();
         for (Task t : tasks.findByTenantId(tid)) {
             if ("DONE".equalsIgnoreCase(t.getStatus()) || "FILED".equalsIgnoreCase(t.getStatus())) continue;
+            Client c = cmap.get(t.getClientId());
+            String name = c==null||c.getName()==null?"":c.getName();
+            String phone = c==null||c.getPhone()==null?"":c.getPhone();
+            String fallback = "Namaste " + name + ", please share books for " + t.getServiceCode() + " " + t.getPeriod()
+                + " due " + t.getDueOn() + " so we can file on time.";
+            String msg = IndiaLinks.applyTemplate(firm.getReminderTemplate(), fallback, name, t.getServiceCode(), t.getDueOn());
             Map<String,Object> row = new LinkedHashMap<>();
             row.put("id", t.getId());
             row.put("clientId", t.getClientId());
+            row.put("clientName", name);
+            row.put("phone", phone);
             row.put("serviceCode", t.getServiceCode());
             row.put("period", t.getPeriod());
             row.put("dueOn", t.getDueOn());
             row.put("status", t.getStatus());
+            row.put("reminder", msg);
+            row.put("waLink", IndiaLinks.wa(phone, msg));
             try {
                 LocalDate due = LocalDate.parse(t.getDueOn());
                 if (due.isBefore(today)) overdue.add(row);

@@ -11,17 +11,98 @@ async function api(path, opts={}) {
   if(!text) return null;
   return JSON.parse(text);
 }
+function downloadCsv(name, rows) {
+  if (!rows || !rows.length) return;
+  const keys = Object.keys(rows[0]).filter(k => k !== "tenantId");
+  const csv = [keys.join(","), ...rows.map(r => keys.map(k => String(r[k]??"").replaceAll(","," ")).join(","))].join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv"})); a.download = name+".csv"; a.click();
+}
+function useTools({kind, rows, onImported}) {
+  const [csv,setCsv]=useState(""); const [q,setQ]=useState("");
+  const shown = (rows||[]).filter(r => JSON.stringify(r).toLowerCase().includes(q.toLowerCase()));
+  async function imp(){ await api("/import/"+kind,{method:"POST",body:JSON.stringify({csv})}); setCsv(""); onImported(); }
+  return {shown, bar: (<div className="tools"><input placeholder="Search" value={q} onChange={e=>setQ(e.target.value)} /><button type="button" className="ghost-ink" onClick={()=>downloadCsv(kind, shown)}>Download CSV</button><textarea rows={2} placeholder="Paste CSV" value={csv} onChange={e=>setCsv(e.target.value)} /><button type="button" onClick={imp}>Import Excel/CSV</button></div>)};
+}
+function printSheet(title, html){
+  const w=window.open("", "_blank");
+  if(!w) return;
+  w.document.write("<html><head><title>"+title+"</title><style>body{font-family:sans-serif;padding:24px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #999;padding:6px;text-align:left}</style></head><body>"+html+"</body></html>");
+  w.document.close(); w.focus(); w.print();
+}
+function TeamPage(){
+  const [rows,setRows]=useState([]);
+  const [form,setForm]=useState({fullName:"",email:"",password:""});
+  const [pw,setPw]=useState({oldPassword:"",newPassword:""});
+  const [msg,setMsg]=useState("");
+  const load=()=>api("/team").then(setRows).catch(()=>{});
+  useEffect(()=>{load();},[]);
+  async function invite(ev){ ev.preventDefault(); await api("/team",{method:"POST",body:JSON.stringify(form)}); setForm({fullName:"",email:"",password:""}); setMsg("Staff added."); load(); }
+  async function changePw(ev){ ev.preventDefault(); await api("/me/password",{method:"POST",body:JSON.stringify(pw)}); setMsg("Password changed."); setPw({oldPassword:"",newPassword:""}); }
+  return (<section className="card"><h2>Team</h2>
+    <p className="muted">Owner can add staff. Staff share the same workspace data.</p>
+    <form className="grid-form" onSubmit={invite}>
+      <label>Name<input value={form.fullName} onChange={e=>setForm({...form,fullName:e.target.value})} /></label>
+      <label>Email<input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required /></label>
+      <label>Password<input type="password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} minLength={8} required /></label>
+      <button>Add staff</button>
+    </form>
+    <form className="grid-form" onSubmit={changePw}>
+      <label>Current password<input type="password" value={pw.oldPassword} onChange={e=>setPw({...pw,oldPassword:e.target.value})} /></label>
+      <label>New password<input type="password" value={pw.newPassword} onChange={e=>setPw({...pw,newPassword:e.target.value})} minLength={8} /></label>
+      <button>Change password</button>
+    </form>
+    {msg && <p className="muted">{msg}</p>}
+    <div className="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead>
+    <tbody>{rows.map(r=><tr key={r.id}><td>{r.fullName}</td><td>{r.email}</td><td>{r.role}</td></tr>)}</tbody></table></div>
+  </section>);
+}
+function ActivityPage(){
+  const [rows,setRows]=useState([]);
+  useEffect(()=>{ api("/activity").then(setRows).catch(()=>{}); },[]);
+  return (<section className="card"><h2>Activity</h2>
+    {rows.length===0 ? <div className="empty">No activity yet.</div> : (
+      <div className="table-wrap"><table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Detail</th></tr></thead>
+      <tbody>{rows.map(r=><tr key={r.id}><td>{String(r.createdAt||"").slice(0,19)}</td><td>{r.actor}</td><td>{r.action}</td><td>{r.detail}</td></tr>)}</tbody></table></div>
+    )}
+  </section>);
+}
+function SettingsPage(){
+  const [form,setForm]=useState({name:"",city:"",phone:"",gstin:"",upiVpa:"",whatsapp:"",address:"",reminderTemplate:""});
+  const [msg,setMsg]=useState("");
+  useEffect(()=>{ api("/settings").then(s=>setForm({
+    name:s.name||"", city:s.city||"", phone:s.phone||"", gstin:s.gstin||"",
+    upiVpa:s.upiVpa||"", whatsapp:s.whatsapp||"", address:s.address||"", reminderTemplate:s.reminderTemplate||""
+  })); },[]);
+  async function save(ev){ ev.preventDefault(); await api("/settings",{method:"PUT",body:JSON.stringify(form)}); setMsg("Saved UPI, WhatsApp and reminder template."); }
+  return (<section className="card"><h2>Workspace settings</h2>
+    <p className="muted">UPI VPA is used on receipts and chase messages. Template can use {"{name}"}, {"{amount}"}, {"{extra}"}.</p>
+    <form className="grid-form" onSubmit={save}>
+      <label>Name<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} /></label>
+      <label>City<input value={form.city} onChange={e=>setForm({...form,city:e.target.value})} /></label>
+      <label>Phone<input value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} /></label>
+      <label>GSTIN<input value={form.gstin} onChange={e=>setForm({...form,gstin:e.target.value})} /></label>
+      <label>UPI VPA<input value={form.upiVpa} onChange={e=>setForm({...form,upiVpa:e.target.value})} placeholder="name@upi" /></label>
+      <label>WhatsApp<input value={form.whatsapp} onChange={e=>setForm({...form,whatsapp:e.target.value})} /></label>
+      <label>Address<input value={form.address} onChange={e=>setForm({...form,address:e.target.value})} /></label>
+      <label>Reminder template<textarea rows={2} value={form.reminderTemplate} onChange={e=>setForm({...form,reminderTemplate:e.target.value})} /></label>
+      <button>Save settings</button>
+    </form>
+    {msg && <p className="muted">{msg}</p>}
+  </section>);
+}
 function ClientsPage(){
   const [rows,setRows]=useState([]);
   const [form,setForm]=useState({});
   const [err,setErr]=useState("");
   const load=()=>api("/clients").then(setRows).catch(e=>setErr(e.message));
   useEffect(()=>{load();},[]);
+  const tools=useTools({kind:"clients", rows, onImported:load});
   const save=async ev=>{ev.preventDefault(); setErr(""); try{ await api("/clients",{method:"POST",body:JSON.stringify(form)}); setForm({}); load(); }catch(e){ setErr(e.message); }};
   const remove=id=>api("/clients/"+id,{method:"DELETE"}).then(load).catch(e=>setErr(e.message));
   return (<section className="card">
     <h2>Clients</h2>
     <p className="muted">Add a GSTIN to start the due board.</p>
+    {tools.bar}
     <form className="grid-form" onSubmit={save}>
         <label>Client<input value={form.name ?? ""} onChange={ev => setForm({...form, name: ev.target.value})} /></label>
         <label>GSTIN<input value={form.gstin ?? ""} onChange={ev => setForm({...form, gstin: ev.target.value})} /></label>
@@ -31,9 +112,9 @@ function ClientsPage(){
       <button type="submit">Save</button>
     </form>
     {err && <p className="err">{err}</p>}
-    {rows.length===0 ? <div className="empty">Add a GSTIN to start the due board.</div> : (
+    {tools.shown.length===0 ? <div className="empty">Add a GSTIN to start the due board.</div> : (
     <div className="table-wrap"><table><thead><tr><th>Client</th><th>GSTIN</th><th>Phone</th><th>Filing type</th><th>Status</th><th></th></tr></thead>
-    <tbody>{rows.map(row=><tr key={row.id}><td>{String(row.name ?? "")}</td><td>{String(row.gstin ?? "")}</td><td>{String(row.phone ?? "")}</td><td>{String(row.filingType ?? "")}</td><td>{String(row.status ?? "")}</td><td><button className="danger" onClick={()=>remove(row.id)}>Remove</button></td></tr>)}</tbody></table></div>)}
+    <tbody>{tools.shown.map(row=><tr key={row.id}><td>{String(row.name ?? "")}</td><td>{String(row.gstin ?? "")}</td><td>{String(row.phone ?? "")}</td><td>{String(row.filingType ?? "")}</td><td>{String(row.status ?? "")}</td><td><button className="danger" onClick={()=>remove(row.id)}>Remove</button></td></tr>)}</tbody></table></div>)}
   </section>);
 }
 
@@ -110,9 +191,10 @@ function Dashboard(){
     <section className="card">
       <h2>Work queue</h2>
       {rows.length===0 ? <div className="empty">Add clients, then seed this month.</div> : (
-        <div className="table-wrap"><table><thead><tr><th>Flag</th><th>Return</th><th>Period</th><th>Due</th><th></th></tr></thead>
-        <tbody>{rows.map(r=><tr key={r.id}><td>{r.flag}</td><td>{r.serviceCode}</td><td>{r.period}</td><td>{r.dueOn}</td>
-          <td><button onClick={()=>done(r.id)}>Mark filed</button></td></tr>)}</tbody></table></div>
+        <div className="table-wrap"><table><thead><tr><th>Flag</th><th>Client</th><th>Return</th><th>Period</th><th>Due</th><th></th></tr></thead>
+        <tbody>{rows.map(r=><tr key={r.id}><td>{r.flag}</td><td>{r.clientName||r.serviceCode}</td><td>{r.serviceCode}</td><td>{r.period}</td><td>{r.dueOn}</td>
+          <td><button onClick={()=>done(r.id)}>Mark filed</button>
+            {r.waLink && <a className="wa" href={r.waLink} target="_blank" rel="noreferrer">WhatsApp</a>}</td></tr>)}</tbody></table></div>
       )}
     </section>
   </div>);
@@ -158,6 +240,9 @@ export default function App(){
   if(page==="clients") body = <ClientsPage />;
   if(page==="tasks") body = <DuetasksPage />;
   if(page==="work_files") body = <WorkingpapersPage />;
+  if(page==="settings") body = <SettingsPage />;
+  if(page==="team") body = <TeamPage />;
+  if(page==="activity") body = <ActivityPage />;
   return (<div className="shell">
     <div className="top">
       <button type="button" className="burger" onClick={()=>setMenu(v=>!v)}>Menu</button>
@@ -171,6 +256,9 @@ export default function App(){
           <button className={page==="clients"?"active":""} onClick={()=>setPage("clients")}>Clients</button>
           <button className={page==="tasks"?"active":""} onClick={()=>setPage("tasks")}>Due tasks</button>
           <button className={page==="work_files"?"active":""} onClick={()=>setPage("work_files")}>Working papers</button>
+          <button className={page==="settings"?"active":""} onClick={()=>setPage("settings")}>Settings</button>
+          <button className={page==="team"?"active":""} onClick={()=>setPage("team")}>Team</button>
+          <button className={page==="activity"?"active":""} onClick={()=>setPage("activity")}>Activity</button>
       </nav>
       <main>{body}</main>
       <nav className="tabs">
